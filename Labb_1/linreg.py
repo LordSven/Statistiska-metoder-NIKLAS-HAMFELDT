@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from scipy.stats import t, f, pearsonr
 
 def aggregate(df):
@@ -41,36 +40,7 @@ def aggregate(df):
     )
     return aggregated
 
-def prepare_features(df, cat_cols=None, drop_first=True):
-    """
-    One-hot encodar angivna kategoriska kolumner och returnerar 
-    dataframe redo för regression tillsammans med lista på feature-namn.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame som ska transformerad
-    cat_cols : list of str
-        Kolumner som ska one-hot encodas
-    drop_first : bool, default True
-        Drop first category för att undvika multikollinearitet
-    
-    Returns
-    -------
-    df_prepared : pd.DataFrame
-        DataFrame med en-hot encodade kolumner
-    feat_cols : list of str
-        Lista på kolumnnamn som ska användas som X
-    """
 
-    df_prepared = df.copy()
-
-    if cat_cols is not None:
-        df_prepared = pd.get_dummies(df_prepared, columns=cat_cols, drop_first=drop_first)
-    
-    feat_cols = [col for col in df_prepared.columns if col not in ['median_house_value']]
-    
-    return df_prepared, feat_cols
 
 def build_X_Y(df, feat_cols, target_col='median_house_value'):
     """
@@ -149,6 +119,18 @@ class LinearRegression:
         t_stats = signifikans för varje koefficient
 
         p_values = sannolikheten att koefficienten egentligen är 0; lågt värde = signifikant
+
+        Y_mean = medelvärdet för Y
+
+        Syy = hur mycket Y varierar totalt runt sitt medelvärde
+
+        SSR = hur mycket av Syy-variationen modellen förklarar
+
+        F_stat = hur mycket större är den förklarade variationen är gentemot brus per parameter
+
+        F_p_value = kollar modellens signifikans i helhet
+
+        R2 = hur mycket av variationen i Y som modellen kan förklara med hjälp av X
         """
 
         self.Y_est = self.X @ self.b_est
@@ -168,3 +150,42 @@ class LinearRegression:
         self.t_stats = self.b_est / np.sqrt(np.diag(self.C))
 
         self.p_values = 2 * t.sf(np.abs(self.t_stats), df=self.n - self.d - 1)
+
+        self.Y_mean = np.mean(self.Y)
+
+        self.Syy = np.sum((self.Y - self.Y_mean)**2)
+
+        self.SSR = self.Syy - self.SSE
+
+        self.F_stat = (self.SSR / self.d) / self.variance
+
+        self.F_p_value = f.sf(self.F_stat, self.d, self.n - self.d - 1)
+
+        self.R2 = self.SSR / self.Syy
+
+    def confidence_intervals(self, alpha=0.05):
+        t_val = t.ppf(1 - alpha/2, df=self.n - self.d - 1)
+        lower = self.b_est - t_val * np.sqrt(np.diag(self.C))
+        upper = self.b_est + t_val * np.sqrt(np.diag(self.C))
+        return np.column_stack((lower, upper))
+
+    def pearson_numeric2(self, X_full):
+        n_vars = X_full.shape[1]
+        results = []
+
+        for i in range(n_vars):
+            for j in range(i, n_vars):
+                r, _ = pearsonr(X_full[:, i], X_full[:, j])
+                results.append((i, j, r))
+
+        return results
+
+    def pearson_categorical_numeric2(self, X_cat, X_num):
+        results = []
+
+        for i in range(X_cat.shape[1]):
+            for j in range(X_num.shape[1]):
+                r, _ = pearsonr(X_cat[:, i], X_num[:, j])
+                results.append((i, j, r))
+
+        return results
