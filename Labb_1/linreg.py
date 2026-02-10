@@ -2,66 +2,44 @@ import numpy as np
 from scipy.stats import t, f, pearsonr
 
 def aggregate(df):
-    """
-    Aggregerar housing dataframen utifrån (longitude, latitude).
-
-    Grupper som medelvärde räknas ut för:
-        housing_median_age
-        median_income
-        median_house_value
-
-    Grupper som summan röknas ut för:
-        total_rooms
-        total_bedrooms
-        population
-        households
-
-    Behåller oförändrat:
-        ocean_proximity (första värdet per grupp , men det ändrar inte för någon)
-    """
     grouped = df.groupby(['longitude', 'latitude'])
+
     mean_cols = [
         'housing_median_age',
         'median_income',
         'median_house_value'
     ]
+
     sum_cols = [
         'total_rooms',
         'total_bedrooms',
         'population',
         'households'
     ]
+
     ocean = grouped['ocean_proximity'].first()
+
     aggregated = (
         grouped[mean_cols].mean()
         .join(grouped[sum_cols].sum())
         .join(ocean)
         .reset_index()
     )
+
+    lat0 = aggregated['latitude'].mean()
+    lon0 = aggregated['longitude'].mean()
+
+    aggregated['distance_to_centroid'] = np.sqrt(
+        (aggregated['latitude'] - lat0)**2 +
+        (aggregated['longitude'] - lon0)**2
+    )
+
+    aggregated = aggregated.drop(columns=['latitude', 'longitude'])
+
     return aggregated
 
-
-
 def build_X_Y(df, feat_cols, target_col='median_house_value'):
-    """
-    Bygger X- och Y-matriser för regression och lägger till intercept.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame med data
-    feat_cols : list of str
-        Kolumner som ska vara regressorer (X)
-    target_col : str, default 'median_house_value'
-        Målvariabeln (Y)
-
-    Returns
-    -------
-    X : np.ndarray, shape (n, d+1)
-        Designmatris med intercept (första kolumnen är 1)
-    Y : np.ndarray, shape (n,)
-        Målvariabel
-    """
     n = df.shape[0]
 
     X = df[feat_cols].to_numpy(dtype=float)
@@ -80,25 +58,10 @@ class LinearRegression:
 
         self._fit()
     def _fit(self):
-        """
-        Beräknar OLS-koefficienter (b_est) för modellen.
-
-        1. XtX = Transponera och multiplicera X
-
-        2. Invertera XtX
-
-        3. XtY = Multiplicera transponerad X med Y
-
-        4. Beräkna beta genom att multiplicera inverterad XtX med XtY
-        """
         XtX = self.X.T @ self.X
-
         XtX_inv = np.linalg.inv(XtX)
-
         XtY = self.X.T @ self.Y
-
         self.b_est = XtX_inv @ XtY
-
         """
         Beräknar grundläggande statistiker.
 
@@ -132,7 +95,6 @@ class LinearRegression:
 
         R2 = hur mycket av variationen i Y som modellen kan förklara med hjälp av X
         """
-
         self.Y_est = self.X @ self.b_est
 
         self.residuals = self.Y - self.Y_est
@@ -169,7 +131,7 @@ class LinearRegression:
         upper = self.b_est + t_val * np.sqrt(np.diag(self.C))
         return np.column_stack((lower, upper))
 
-    def pearson_numeric2(self, X_full):
+    def pearson_numeric(self, X_full):
         n_vars = X_full.shape[1]
         results = []
 
@@ -180,7 +142,7 @@ class LinearRegression:
 
         return results
 
-    def pearson_categorical_numeric2(self, X_cat, X_num):
+    def pearson_categorical_numeric(self, X_cat, X_num):
         results = []
 
         for i in range(X_cat.shape[1]):
