@@ -34,8 +34,6 @@ def aggregate(df):
         (aggregated['longitude'] - lon0)**2
     )
 
-    aggregated = aggregated.drop(columns=['latitude', 'longitude'])
-
     return aggregated
 
 def build_X_Y(df, feat_cols, target_col='median_house_value'):
@@ -63,7 +61,7 @@ class LinearRegression:
         XtY = self.X.T @ self.Y
         self.b_est = XtX_inv @ XtY
         """
-        Beräknar grundläggande statistiker.
+        Beräknar grundläggande statistik.
 
         Y_est = prediktioner, modellens uppskattade värden för varje X
 
@@ -125,7 +123,7 @@ class LinearRegression:
 
         self.R2 = self.SSR / self.Syy
 
-    def confidence_intervals(self, alpha=0.05):
+    def confidence_intervals(self, alpha):
         t_val = t.ppf(1 - alpha/2, df=self.n - self.d - 1)
         lower = self.b_est - t_val * np.sqrt(np.diag(self.C))
         upper = self.b_est + t_val * np.sqrt(np.diag(self.C))
