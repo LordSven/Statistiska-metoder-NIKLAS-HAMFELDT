@@ -36,7 +36,7 @@ def aggregate(df):
 
     return aggregated
 
-def build_X_Y(df, feat_cols, target_col='median_house_value'):
+def build_X_Y(df, feat_cols, target_col=None):
 
     n = df.shape[0]
 
@@ -57,42 +57,13 @@ class LinearRegression:
         self._fit()
     def _fit(self):
         XtX = self.X.T @ self.X
+
         XtX_inv = np.linalg.inv(XtX)
+
         XtY = self.X.T @ self.Y
+
         self.b_est = XtX_inv @ XtY
-        """
-        Beräknar grundläggande statistik.
 
-        Y_est = prediktioner, modellens uppskattade värden för varje X
-
-        residuals = vad som blev kvar, d.s.v. hur mycket modellen missade med
-
-        SSE = summan av de total felen kvadrerat
-
-        variance = varians, hur stora residualerna är genomsnittligen justerat för antalet variabler i modellen
-
-        STD = standardavvikelse, hur stora felprediktionerna typiskt är i samma enhet som Y
-
-        RMSE = Root Mean Squared Error, en annan metod för att mäta hur stora felprediktionerna typiskt är i samma enhet som Y
-
-        C = varians-kovariansmatris, hur osäkra modellens koefficienter är
-
-        t_stats = signifikans för varje koefficient
-
-        p_values = sannolikheten att koefficienten egentligen är 0; lågt värde = signifikant
-
-        Y_mean = medelvärdet för Y
-
-        Syy = hur mycket Y varierar totalt runt sitt medelvärde
-
-        SSR = hur mycket av Syy-variationen modellen förklarar
-
-        F_stat = hur mycket större är den förklarade variationen är gentemot brus per parameter
-
-        F_p_value = kollar modellens signifikans i helhet
-
-        R2 = hur mycket av variationen i Y som modellen kan förklara med hjälp av X
-        """
         self.Y_est = self.X @ self.b_est
 
         self.residuals = self.Y - self.Y_est
@@ -123,12 +94,6 @@ class LinearRegression:
 
         self.R2 = self.SSR / self.Syy
 
-    def confidence_intervals(self, alpha):
-        t_val = t.ppf(1 - alpha/2, df=self.n - self.d - 1)
-        lower = self.b_est - t_val * np.sqrt(np.diag(self.C))
-        upper = self.b_est + t_val * np.sqrt(np.diag(self.C))
-        return np.column_stack((lower, upper))
-
     def pearson_numeric(self, X_full):
         n_vars = X_full.shape[1]
         results = []
@@ -149,3 +114,11 @@ class LinearRegression:
                 results.append((i, j, r))
 
         return results
+
+    def confidence_intervals(self, alpha):
+        t_val = t.ppf(1 - alpha/2, df=self.n - self.d - 1)
+        lower = self.b_est - t_val * np.sqrt(np.diag(self.C))
+        upper = self.b_est + t_val * np.sqrt(np.diag(self.C))
+        return np.column_stack((lower, upper))
+
+
